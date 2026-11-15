@@ -9,16 +9,16 @@
   --color-chart-comparison: #faff60;
   --color-chart-range: #ff70d5;
   --color-chart-goal: #ffbc42;
-  --color-bg: oklch(17% 0.012 260);
-  --color-surface: oklch(20.5% 0.014 260);
-  --color-elevated: oklch(23% 0.014 260);
-  --color-text: oklch(94% 0.008 250);
-  --color-muted: oklch(65% 0.016 255);
+  --color-bg: oklch(24% 0.012 260);
+  --color-surface: oklch(31% 0.014 260);
+  --color-elevated: oklch(37% 0.014 260);
+  --color-text: oklch(97% 0.008 250);
+  --color-muted: oklch(80% 0.016 255);
   --color-action: oklch(82% 0.115 255);
   --color-action-text: oklch(20% 0.035 255);
-  --color-border: oklch(29% 0.015 260);
+  --color-border: oklch(57% 0.015 260);
   --color-danger: oklch(77% 0.12 25);
-  --color-sidebar: oklch(16% 0.012 260);
+  --color-sidebar: oklch(21% 0.012 260);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
 }
@@ -28,10 +28,10 @@
   --color-surface: oklch(99% 0.003 245);
   --color-elevated: oklch(94% 0.01 250);
   --color-text: oklch(26% 0.02 260);
-  --color-muted: oklch(48% 0.02 255);
+  --color-muted: oklch(43% 0.02 255);
   --color-action: oklch(45% 0.1 255);
   --color-action-text: oklch(99% 0.006 250);
-  --color-border: oklch(88% 0.015 260);
+  --color-border: oklch(65% 0.015 260);
   --color-danger: oklch(46% 0.17 25);
   --color-sidebar: oklch(95% 0.009 245);
 }
@@ -135,6 +135,11 @@ textarea {
   padding: 10px 12px;
   min-height: 41px;
   min-width: 0;
+}
+input::placeholder,
+textarea::placeholder {
+  color: var(--color-muted);
+  opacity: 1;
 }
 input[type="checkbox"] {
   min-height: 0;
