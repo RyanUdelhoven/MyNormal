@@ -27,6 +27,8 @@ export function chartData(
   count: number,
   weekday: number,
   today: string,
+  weeksAhead = s.ranges.ahead ?? 0,
+  weekComparison: "weeks" | "years" = "weeks",
 ) {
   const byDay = new Map(
     s.entries
@@ -42,7 +44,7 @@ export function chartData(
     actualEligible: number[] = [],
     historyEligible: number[] = [];
   if (mode === "Days YoY") {
-    for (let i = count * 7 - 1; i >= 0; i--) {
+    for (let i = count * 7 - 1; i >= -weeksAhead * 7; i--) {
       const day = addDays(today, -i),
         d = date(day);
       const prev = (offset: number) => {
@@ -78,10 +80,19 @@ export function chartData(
       const day = addDays(today, -i),
         actual = get(day);
       const h = vals(
-        Array.from({ length: count }, (_, j) => addDays(day, -7 * (j + 1))),
+        Array.from({ length: count }, (_, j) => {
+          if (weekComparison === "weeks") return addDays(day, -7 * (j + 1));
+          const d = date(day);
+          const year = d.getFullYear() - j - 1;
+          const shifted = new Date(year, d.getMonth(), d.getDate(), 12);
+          return shifted.getMonth() === d.getMonth()
+            ? `${year}-${day.slice(5)}`
+            : "";
+        }),
       );
       const a = actual === undefined ? [] : [actual];
-      const eligible = [...h, ...(day < today ? a : [])];
+      const eligible =
+        weekComparison === "years" ? h : [...h, ...(day < today ? a : [])];
       const avg = mean(eligible),
         dev = sd(eligible);
       actualRaw.push(...a);

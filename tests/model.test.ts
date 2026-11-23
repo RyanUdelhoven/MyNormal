@@ -313,3 +313,143 @@ it("tracks strict above/below streaks, sparse dates, resets, future exclusion, a
     "above",
   );
 });
+
+it("Days YoY shows prior years ahead of today without future measurements", () => {
+  const s = M.initial();
+  s.ranges.ahead = 2;
+  s.entries = [
+    { id: "future", date: "2026-12-02", values: { weight: 100 } },
+    { id: "previous", date: "2025-12-02", values: { weight: 85 } },
+    { id: "older", date: "2024-12-02", values: { weight: 80 } },
+  ];
+  const points = chartData(
+    s,
+    s.metrics[0],
+    "Days YoY",
+    1,
+    0,
+    "2026-11-18",
+  ).points;
+  expect(points).toHaveLength(21);
+  expect(points.at(-1)).toMatchObject({
+    date: "2026-12-02",
+    actual: undefined,
+    previous: 85,
+    older: 80,
+  });
+  expect(
+    points
+      .filter((p) => p.date > "2026-11-18")
+      .every((p) => p.actual === undefined),
+  ).toBe(true);
+  const rollover = chartData(
+    s,
+    s.metrics[0],
+    "Days YoY",
+    1,
+    0,
+    "2026-12-28",
+  ).points;
+  expect(rollover.at(-1)?.date).toBe("2027-01-11");
+});
+
+it("restores old range settings and validates weeks ahead independently", () => {
+  const legacy = M.initial();
+  delete (legacy.ranges as Partial<M.State["ranges"]>).ahead;
+  expect(M.validateState(legacy).ranges.ahead).toBe(0);
+  for (const ahead of [0, 2, 520]) {
+    expect(
+      M.validateState({ ...legacy, ranges: { ...legacy.ranges, ahead } }).ranges
+        .ahead,
+    ).toBe(ahead);
+  }
+  for (const ahead of [-1, 1.5, 521]) {
+    expect(() =>
+      M.validateState({ ...legacy, ranges: { ...legacy.ranges, ahead } }),
+    ).toThrow();
+  }
+});
+
+it("Week flow years matches November 17–23 across only the selected prior years", () => {
+  const s = M.initial();
+  for (const year of [2023, 2024, 2025, 2026]) {
+    for (let day = 16; day <= 24; day++) {
+      s.entries.push({
+        id: `${year}-${day}`,
+        date: `${year}-11-${day}`,
+        values: { weight: year === 2024 ? 80 : year === 2025 ? 100 : 200 },
+      });
+    }
+  }
+  const result = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    2,
+    0,
+    "2026-11-23",
+    0,
+    "years",
+  );
+  expect(result.points.map((p) => p.date)).toEqual(
+    Array.from({ length: 7 }, (_, i) => `2026-11-${17 + i}`),
+  );
+  expect(result.historyMean).toBe(90);
+  expect(result.historySD).toBe(
+    M.sd(Array.from({ length: 7 }, () => [80, 100]).flat()),
+  );
+  for (const point of result.points) {
+    expect(point.average).toBe(90);
+    expect(point.deviation).toBe(M.sd([80, 100]));
+    expect(point.low).toBe(90 - M.sd([80, 100])!);
+    expect(point.high).toBe(90 + M.sd([80, 100])!);
+  }
+  const weeks = chartData(s, s.metrics[0], "Week flow", 2, 0, "2026-11-23");
+  expect(weeks.points.at(-1)?.average).toBe(200);
+});
+
+it("Week flow years skips nonexistent leap dates and matches dates across New Year", () => {
+  const s = M.initial();
+  s.entries = [
+    { id: "leap", date: "2020-02-29", values: { weight: 80 } },
+    { id: "march", date: "2023-03-01", values: { weight: 200 } },
+    { id: "dec", date: "2024-12-31", values: { weight: 90 } },
+    { id: "jan", date: "2025-01-01", values: { weight: 100 } },
+  ];
+  const leap = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    4,
+    0,
+    "2024-02-29",
+    0,
+    "years",
+  );
+  expect(leap.points.at(-1)?.average).toBe(80);
+  const missing = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    1,
+    0,
+    "2024-02-29",
+    0,
+    "years",
+  );
+  expect(missing.points.at(-1)?.average).toBeUndefined();
+  const newYear = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    1,
+    0,
+    "2026-01-02",
+    0,
+    "years",
+  );
+  expect(newYear.points.find((p) => p.date === "2025-12-31")?.average).toBe(90);
+  expect(newYear.points.find((p) => p.date === "2026-01-01")?.average).toBe(
+    100,
+  );
+});

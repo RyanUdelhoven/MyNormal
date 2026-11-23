@@ -52,7 +52,13 @@ export interface State {
     expiry: number;
     sharedTime: boolean;
   };
-  ranges: { days: number; weekday: number; week: number; year: number };
+  ranges: {
+    days: number;
+    ahead: number;
+    weekday: number;
+    week: number;
+    year: number;
+  };
 }
 export const id = () => crypto.randomUUID();
 export const localDate = (d = new Date()) =>
@@ -91,7 +97,7 @@ export const initial = (): State => ({
     expiry: 6,
     sharedTime: true,
   },
-  ranges: { days: 30, weekday: 52, week: 12, year: 3 },
+  ranges: { days: 30, ahead: 0, weekday: 52, week: 12, year: 3 },
 });
 export const factor = (u: Unit) =>
   u === "lb" ? 0.45359237 : u === "in" ? 2.54 : 1;
@@ -580,12 +586,17 @@ export function validateState(input: unknown): State {
         (g.durationUnit !== undefined &&
           !["days", "weeks"].includes(g.durationUnit)),
     ) ||
-    Object.values(s.ranges).some(
-      (v) => !Number.isInteger(v) || v < 1 || v > 520,
+    Object.entries(s.ranges).some(
+      ([key, v]) =>
+        !Number.isInteger(v) || v < (key === "ahead" ? 0 : 1) || v > 520,
     )
   )
     throw Error("Invalid preferences or goals in backup.");
-  return { ...s, entries: s.entries.map(withoutLegacyNote) };
+  return {
+    ...s,
+    ranges: { ...s.ranges, ahead: s.ranges.ahead ?? 0 },
+    entries: s.entries.map(withoutLegacyNote),
+  };
 }
 
 export function limitInput(raw: string, unit: Unit, previous = "") {

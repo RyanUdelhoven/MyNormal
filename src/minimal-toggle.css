@@ -1,0 +1,193 @@
+/* Adapted from the component library Minimal Toggle. */
+.min-toggle {
+  --toggle-on: #0bd394;
+  --toggle-off: #fff;
+  --toggle-ink: #303735;
+  --w: 112px;
+  --h: 56px;
+  --thumb: 40px;
+  --inset: 6px;
+  --travel: 56px;
+  --state: 58px;
+  --font: 18px;
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 100%;
+  color: inherit;
+  font:
+    500 16px/1.4 system-ui,
+    sans-serif;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.min-toggle > span {
+  position: relative;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  box-sizing: border-box;
+  width: var(--w);
+  height: var(--h);
+  border: 2px solid var(--toggle-off);
+  border-radius: 999px;
+  color: var(--toggle-off);
+  transition:
+    background-color 160ms,
+    border-color 160ms;
+}
+.min-toggle input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: inherit;
+  z-index: 1;
+}
+.min-toggle i {
+  display: contents;
+  font-style: normal;
+}
+.min-toggle i:before {
+  content: "";
+  position: absolute;
+  left: var(--inset);
+  top: var(--inset);
+  width: var(--thumb);
+  height: var(--thumb);
+  border-radius: 50%;
+  background: var(--toggle-off);
+  transition:
+    transform 160ms,
+    background-color 160ms;
+}
+.min-toggle i:after {
+  content: "OFF";
+  width: var(--state);
+  text-align: center;
+  font-size: var(--font);
+  font-weight: 750;
+}
+.min-toggle > span:has(:checked) {
+  background: var(--toggle-on);
+  border-color: var(--toggle-on);
+  color: var(--toggle-ink);
+  justify-content: flex-start;
+}
+.min-toggle :checked + i:before {
+  transform: translateX(var(--travel));
+  background: #fff;
+}
+.min-toggle :checked + i:after {
+  content: "ON";
+}
+.min-toggle > span:has(:focus-visible) {
+  outline: 3px solid #ffd16b;
+  outline-offset: 5px;
+}
+.min-toggle:has(:disabled) {
+  cursor: not-allowed;
+  color: #b4bdba;
+}
+.min-toggle > span:has(:disabled) {
+  --toggle-off: #a6adb2;
+  --toggle-on: #a8cbbf;
+}
+.min-toggle.small {
+  --w: 88px;
+  --h: 44px;
+  --thumb: 30px;
+  --inset: 5px;
+  --travel: 44px;
+  --state: 45px;
+  --font: 14px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .min-toggle > span,
+  .min-toggle i:before {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .min-toggle > span {
+    forced-color-adjust: none;
+    border-color: ButtonText;
+    color: ButtonText;
+    background: Canvas;
+  }
+  .min-toggle i:before {
+    background: ButtonText;
+  }
+  .min-toggle > span:has(:checked) {
+    background: Highlight;
+    border-color: Highlight;
+    color: HighlightText;
+  }
+  .min-toggle :checked + i:before {
+    background: HighlightText;
+  }
+  .min-toggle > span:has(:disabled) {
+    border-color: GrayText;
+    color: GrayText;
+  }
+  .min-toggle :disabled + i:before {
+    background: GrayText;
+  }
+  .min-toggle > span:has(:focus-visible) {
+    outline-color: Highlight;
+  }
+}
+
+/* Week Flow uses two comparison modes instead of ON/OFF. */
+.trend-card .chart-controls .week-comparison {
+  --toggle-on: #7541a0;
+  --toggle-off: #2456a6;
+  --toggle-ink: #fff;
+  --w: 82px;
+  --h: 41px;
+  --thumb: 27px;
+  --travel: 41px;
+  display: inline-flex;
+  flex: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  max-width: 100%;
+  font-size: 12px;
+}
+.week-comparison.min-toggle > span {
+  background: var(--toggle-off);
+}
+.trend-card .chart-controls .week-comparison input {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  min-height: 0;
+}
+.week-comparison.min-toggle i:before {
+  background: #fff;
+}
+.week-comparison.min-toggle i:after {
+  content: none;
+}
+@media (forced-colors: active) {
+  .week-comparison.min-toggle > span {
+    background: Canvas;
+  }
+  .week-comparison.min-toggle > span:has(:checked) {
+    background: Highlight;
+  }
+  .week-comparison.min-toggle i:before {
+    background: ButtonText;
+  }
+  .week-comparison.min-toggle :checked + i:before {
+    background: HighlightText;
+  }
+}
+
+.week-comparison.min-toggle > span:has(:checked) {
+  background: var(--toggle-on);
+}
