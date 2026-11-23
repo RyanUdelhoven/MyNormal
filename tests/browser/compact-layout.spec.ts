@@ -87,10 +87,22 @@ test("Trends statistics and graph fit desktop and mobile viewports", async ({
       );
       expect(graphBox!.height).toBeGreaterThanOrEqual(160);
       const metricBox = await page
-          .getByRole("combobox", { name: "Chart metric" })
-          .boundingBox(),
-        rangeBox = await page.getByRole("spinbutton").boundingBox();
-      expect(Math.abs(metricBox!.y - rangeBox!.y)).toBeLessThan(4);
+        .getByRole("combobox", { name: "Chart metric" })
+        .boundingBox();
+      const ranges = page.getByRole("spinbutton");
+      await expect(ranges).toHaveCount(mode === "Days YoY" ? 2 : 1);
+      for (const range of await ranges.all()) {
+        const rangeBox = await range.boundingBox();
+        if (mode === "Week flow" && viewport.width <= 600) {
+          const comparison = await page
+            .locator(".week-comparison")
+            .boundingBox();
+          expect(rangeBox!.y).toBeGreaterThanOrEqual(metricBox!.y);
+          expect(comparison!.width).toBeLessThanOrEqual(viewport.width);
+        } else {
+          expect(Math.abs(metricBox!.y - rangeBox!.y)).toBeLessThan(4);
+        }
+      }
       const stats = await page.locator(".stats").boundingBox();
       expect(stats!.y).toBeGreaterThanOrEqual(0);
       expect(stats!.y + stats!.height).toBeLessThan(graphBox!.y);

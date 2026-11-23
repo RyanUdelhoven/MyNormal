@@ -1,3 +1,4 @@
+import "../minimal-toggle.css";
 import { useState, useEffect, useRef } from "react";
 import * as M from "../model";
 import type { CommitRange, RangeKey } from "../types";
@@ -25,7 +26,12 @@ export function Trends({
 }) {
   const [mode, setMode] = useState<Mode>("Days YoY");
   const [selection, setSelection] = useState<string>();
-  const [weekday, setWeekday] = useState(0);
+  const [weekComparison, setWeekComparison] = useState<"weeks" | "years">(
+    "weeks",
+  );
+  const [yearCount, setYearCount] = useState(2);
+  const [yearDraft, setYearDraft] = useState("2");
+  const [weekday, setWeekday] = useState(() => M.date(M.localDate()).getDay());
   const [drafts, setDrafts] = useState<Record<RangeKey, string>>(
     () =>
       Object.fromEntries(
@@ -71,7 +77,7 @@ export function Trends({
         text="Add a metric in New entry to start exploring trends."
       />
     );
-  const key =
+  const key: RangeKey =
     mode === "Days YoY"
       ? "days"
       : mode === "Previous weekdays"
@@ -79,9 +85,16 @@ export function Trends({
         : mode === "Week flow"
           ? "week"
           : "year";
-  const count = validRanges[key];
-  const minimum = mode === "Week flow" ? 3 : mode === "Year flow" ? 2 : 1;
-  const maximum = mode === "Year flow" ? 100 : 520;
+  const comparingYears = mode === "Week flow" && weekComparison === "years";
+  const count = comparingYears ? yearCount : validRanges[key];
+  const minimum = comparingYears
+    ? 1
+    : mode === "Week flow"
+      ? 3
+      : mode === "Year flow"
+        ? 2
+        : 1;
+  const maximum = mode === "Year flow" || comparingYears ? 100 : 520;
   const { points, actualMean, historyMean, actualSD, historySD } = chartData(
     state,
     metric,
@@ -89,6 +102,8 @@ export function Trends({
     count,
     weekday,
     M.localDate(),
+    validRanges.ahead,
+    weekComparison,
   );
   const observed = points.flatMap((p) =>
     p.actual === undefined ? [] : [p.actual],
@@ -193,48 +208,94 @@ export function Trends({
               ))}
             </select>
           </label>
-          <label>
-            {mode === "Days YoY"
-              ? "Weeks covered"
-              : mode === "Previous weekdays"
-                ? "Weeks covered"
-                : mode === "Week flow"
-                  ? "Previous weeks"
-                  : "Previous years"}
-            <input
-              key={key}
-              type="number"
-              min={minimum}
-              max={maximum}
-              step={1}
-              value={drafts[key]}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setDrafts((current) => ({ ...current, [key]: raw }));
-                const n = Number(raw);
-                if (
-                  raw.trim() &&
-                  Number.isInteger(n) &&
-                  n >= minimum &&
-                  n <= maximum
-                ) {
-                  setValidRanges((current) => ({ ...current, [key]: n }));
-                  requested.current[key] = n;
-                  void commitRange(key, n);
-                }
-              }}
-              onFocus={() => {
-                focused.current = key;
-              }}
-              onBlur={() => {
-                focused.current = undefined;
-                setDrafts((current) => ({
-                  ...current,
-                  [key]: String(validRanges[key]),
-                }));
-              }}
-            />
-          </label>
+          {mode === "Week flow" && (
+            <label className="week-comparison min-toggle small">
+              <span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Compare previous years"
+                  checked={weekComparison === "years"}
+                  onChange={(e) =>
+                    setWeekComparison(e.target.checked ? "years" : "weeks")
+                  }
+                />
+                <i aria-hidden="true" />
+              </span>
+            </label>
+          )}
+          {(mode === "Days YoY" ? ([key, "ahead"] as const) : [key]).map(
+            (rangeKey) => {
+              const rangeMinimum = rangeKey === "ahead" ? 0 : minimum;
+              return (
+                <label key={rangeKey}>
+                  {rangeKey === "ahead"
+                    ? "Weeks ahead"
+                    : mode === "Days YoY"
+                      ? "Weeks past"
+                      : mode === "Previous weekdays"
+                        ? "Weeks covered"
+                        : mode === "Week flow"
+                          ? comparingYears
+                            ? "Previous years"
+                            : "Previous weeks"
+                          : "Previous years"}
+                  <input
+                    key={rangeKey}
+                    type="number"
+                    min={rangeMinimum}
+                    max={maximum}
+                    step={1}
+                    value={comparingYears ? yearDraft : drafts[rangeKey]}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      if (comparingYears) {
+                        setYearDraft(raw);
+                        const n = Number(raw);
+                        if (
+                          raw.trim() &&
+                          Number.isInteger(n) &&
+                          n >= 1 &&
+                          n <= 100
+                        )
+                          setYearCount(n);
+                        return;
+                      }
+                      setDrafts((current) => ({ ...current, [rangeKey]: raw }));
+                      const n = Number(raw);
+                      if (
+                        raw.trim() &&
+                        Number.isInteger(n) &&
+                        n >= rangeMinimum &&
+                        n <= maximum
+                      ) {
+                        setValidRanges((current) => ({
+                          ...current,
+                          [rangeKey]: n,
+                        }));
+                        requested.current[rangeKey] = n;
+                        void commitRange(rangeKey, n);
+                      }
+                    }}
+                    onFocus={() => {
+                      if (!comparingYears) focused.current = rangeKey;
+                    }}
+                    onBlur={() => {
+                      if (comparingYears) {
+                        setYearDraft(String(yearCount));
+                        return;
+                      }
+                      focused.current = undefined;
+                      setDrafts((current) => ({
+                        ...current,
+                        [rangeKey]: String(validRanges[rangeKey]),
+                      }));
+                    }}
+                  />
+                </label>
+              );
+            },
+          )}
           {mode === "Previous weekdays" && (
             <label>
               Weekday
@@ -264,7 +325,9 @@ export function Trends({
             </div>
             <div>
               <span>
-                Past {count} {mode === "Week flow" ? "week" : "year"} average
+                Past {count}{" "}
+                {mode === "Week flow" && !comparingYears ? "week" : "year"}{" "}
+                average
               </span>
               <strong>{stat(historyMean)}</strong>
               <small>Std. dev. {stat(historySD)}</small>
@@ -431,7 +494,7 @@ export function Trends({
           <table>
             <thead>
               <tr>
-                <th>Date</th>
+                <th>{mode === "Week flow" ? "Day" : "Date"}</th>
                 <th>
                   {mode === "Days YoY" ? new Date().getFullYear() : "Actual"}
                 </th>
@@ -451,7 +514,13 @@ export function Trends({
             <tbody>
               {[...points].reverse().map((p) => (
                 <tr key={p.date}>
-                  <td>{p.date}</td>
+                  <td>
+                    {mode === "Week flow"
+                      ? M.date(p.date).toLocaleDateString(undefined, {
+                          weekday: "long",
+                        })
+                      : p.date}
+                  </td>
                   <td>{stat(p.actual)}</td>
                   {mode === "Days YoY" ? (
                     <>
