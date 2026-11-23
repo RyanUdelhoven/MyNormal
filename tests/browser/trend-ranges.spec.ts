@@ -115,3 +115,42 @@ test("Weeks ahead extends the chart and resets invalid drafts", async ({
     "2026-11-18",
   );
 });
+
+test("Week flow switches comparison units and keeps independent counts", async ({
+  page,
+}) => {
+  await page.getByRole("button", { name: "Trends", exact: true }).click();
+  await page.getByRole("button", { name: "Week flow", exact: true }).click();
+  const toggle = page.getByRole("switch", { name: "Compare previous years" });
+  await expect(toggle).not.toBeChecked();
+  await page
+    .getByRole("spinbutton", { name: "Previous weeks", exact: true })
+    .fill("8");
+  await toggle.focus();
+  await page.keyboard.press("Space");
+  await expect(toggle).toBeChecked();
+  const count = page.getByRole("spinbutton", {
+    name: "Previous years",
+    exact: true,
+  });
+  await expect(count).toHaveValue("2");
+  await count.fill("1");
+  await expect(page.locator(".stats")).toContainText("Past 1 year average");
+  await count.fill("101");
+  await count.press("Tab");
+  await expect(count).toHaveValue("1");
+  await toggle.click();
+  await expect(
+    page.getByRole("spinbutton", { name: "Previous weeks", exact: true }),
+  ).toHaveValue("8");
+  await toggle.click();
+  await expect(count).toHaveValue("1");
+  await page.setViewportSize({ width: 320, height: 850 });
+  await expect(toggle).toBeVisible();
+  await expect(page.locator(".week-comparison")).toHaveText("");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

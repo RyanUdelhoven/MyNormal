@@ -93,7 +93,15 @@ test("Trends statistics and graph fit desktop and mobile viewports", async ({
       await expect(ranges).toHaveCount(mode === "Days YoY" ? 2 : 1);
       for (const range of await ranges.all()) {
         const rangeBox = await range.boundingBox();
-        expect(Math.abs(metricBox!.y - rangeBox!.y)).toBeLessThan(4);
+        if (mode === "Week flow" && viewport.width <= 600) {
+          const comparison = await page
+            .locator(".week-comparison")
+            .boundingBox();
+          expect(rangeBox!.y).toBeGreaterThanOrEqual(metricBox!.y);
+          expect(comparison!.width).toBeLessThanOrEqual(viewport.width);
+        } else {
+          expect(Math.abs(metricBox!.y - rangeBox!.y)).toBeLessThan(4);
+        }
       }
       const stats = await page.locator(".stats").boundingBox();
       expect(stats!.y).toBeGreaterThanOrEqual(0);

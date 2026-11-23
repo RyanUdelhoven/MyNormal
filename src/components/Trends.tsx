@@ -1,3 +1,4 @@
+import "../minimal-toggle.css";
 import { useState, useEffect, useRef } from "react";
 import * as M from "../model";
 import type { CommitRange, RangeKey } from "../types";
@@ -25,7 +26,12 @@ export function Trends({
 }) {
   const [mode, setMode] = useState<Mode>("Days YoY");
   const [selection, setSelection] = useState<string>();
-  const [weekday, setWeekday] = useState(0);
+  const [weekComparison, setWeekComparison] = useState<"weeks" | "years">(
+    "weeks",
+  );
+  const [yearCount, setYearCount] = useState(2);
+  const [yearDraft, setYearDraft] = useState("2");
+  const [weekday, setWeekday] = useState(() => M.date(M.localDate()).getDay());
   const [drafts, setDrafts] = useState<Record<RangeKey, string>>(
     () =>
       Object.fromEntries(
@@ -79,9 +85,16 @@ export function Trends({
         : mode === "Week flow"
           ? "week"
           : "year";
-  const count = validRanges[key];
-  const minimum = mode === "Week flow" ? 3 : mode === "Year flow" ? 2 : 1;
-  const maximum = mode === "Year flow" ? 100 : 520;
+  const comparingYears = mode === "Week flow" && weekComparison === "years";
+  const count = comparingYears ? yearCount : validRanges[key];
+  const minimum = comparingYears
+    ? 1
+    : mode === "Week flow"
+      ? 3
+      : mode === "Year flow"
+        ? 2
+        : 1;
+  const maximum = mode === "Year flow" || comparingYears ? 100 : 520;
   const { points, actualMean, historyMean, actualSD, historySD } = chartData(
     state,
     metric,
@@ -90,6 +103,7 @@ export function Trends({
     weekday,
     M.localDate(),
     validRanges.ahead,
+    weekComparison,
   );
   const observed = points.flatMap((p) =>
     p.actual === undefined ? [] : [p.actual],
@@ -194,6 +208,22 @@ export function Trends({
               ))}
             </select>
           </label>
+          {mode === "Week flow" && (
+            <label className="week-comparison min-toggle small">
+              <span>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label="Compare previous years"
+                  checked={weekComparison === "years"}
+                  onChange={(e) =>
+                    setWeekComparison(e.target.checked ? "years" : "weeks")
+                  }
+                />
+                <i aria-hidden="true" />
+              </span>
+            </label>
+          )}
           {(mode === "Days YoY" ? ([key, "ahead"] as const) : [key]).map(
             (rangeKey) => {
               const rangeMinimum = rangeKey === "ahead" ? 0 : minimum;
@@ -206,7 +236,9 @@ export function Trends({
                       : mode === "Previous weekdays"
                         ? "Weeks covered"
                         : mode === "Week flow"
-                          ? "Previous weeks"
+                          ? comparingYears
+                            ? "Previous years"
+                            : "Previous weeks"
                           : "Previous years"}
                   <input
                     key={rangeKey}
@@ -214,9 +246,21 @@ export function Trends({
                     min={rangeMinimum}
                     max={maximum}
                     step={1}
-                    value={drafts[rangeKey]}
+                    value={comparingYears ? yearDraft : drafts[rangeKey]}
                     onChange={(e) => {
                       const raw = e.target.value;
+                      if (comparingYears) {
+                        setYearDraft(raw);
+                        const n = Number(raw);
+                        if (
+                          raw.trim() &&
+                          Number.isInteger(n) &&
+                          n >= 1 &&
+                          n <= 100
+                        )
+                          setYearCount(n);
+                        return;
+                      }
                       setDrafts((current) => ({ ...current, [rangeKey]: raw }));
                       const n = Number(raw);
                       if (
@@ -234,9 +278,13 @@ export function Trends({
                       }
                     }}
                     onFocus={() => {
-                      focused.current = rangeKey;
+                      if (!comparingYears) focused.current = rangeKey;
                     }}
                     onBlur={() => {
+                      if (comparingYears) {
+                        setYearDraft(String(yearCount));
+                        return;
+                      }
                       focused.current = undefined;
                       setDrafts((current) => ({
                         ...current,
@@ -277,7 +325,9 @@ export function Trends({
             </div>
             <div>
               <span>
-                Past {count} {mode === "Week flow" ? "week" : "year"} average
+                Past {count}{" "}
+                {mode === "Week flow" && !comparingYears ? "week" : "year"}{" "}
+                average
               </span>
               <strong>{stat(historyMean)}</strong>
               <small>Std. dev. {stat(historySD)}</small>
@@ -444,7 +494,7 @@ export function Trends({
           <table>
             <thead>
               <tr>
-                <th>Date</th>
+                <th>{mode === "Week flow" ? "Day" : "Date"}</th>
                 <th>
                   {mode === "Days YoY" ? new Date().getFullYear() : "Actual"}
                 </th>
@@ -464,7 +514,13 @@ export function Trends({
             <tbody>
               {[...points].reverse().map((p) => (
                 <tr key={p.date}>
-                  <td>{p.date}</td>
+                  <td>
+                    {mode === "Week flow"
+                      ? M.date(p.date).toLocaleDateString(undefined, {
+                          weekday: "long",
+                        })
+                      : p.date}
+                  </td>
                   <td>{stat(p.actual)}</td>
                   {mode === "Days YoY" ? (
                     <>

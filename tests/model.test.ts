@@ -369,3 +369,87 @@ it("restores old range settings and validates weeks ahead independently", () => 
     ).toThrow();
   }
 });
+
+it("Week flow years matches November 17–23 across only the selected prior years", () => {
+  const s = M.initial();
+  for (const year of [2023, 2024, 2025, 2026]) {
+    for (let day = 16; day <= 24; day++) {
+      s.entries.push({
+        id: `${year}-${day}`,
+        date: `${year}-11-${day}`,
+        values: { weight: year === 2024 ? 80 : year === 2025 ? 100 : 200 },
+      });
+    }
+  }
+  const result = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    2,
+    0,
+    "2026-11-23",
+    0,
+    "years",
+  );
+  expect(result.points.map((p) => p.date)).toEqual(
+    Array.from({ length: 7 }, (_, i) => `2026-11-${17 + i}`),
+  );
+  expect(result.historyMean).toBe(90);
+  expect(result.historySD).toBe(
+    M.sd(Array.from({ length: 7 }, () => [80, 100]).flat()),
+  );
+  for (const point of result.points) {
+    expect(point.average).toBe(90);
+    expect(point.deviation).toBe(M.sd([80, 100]));
+    expect(point.low).toBe(90 - M.sd([80, 100])!);
+    expect(point.high).toBe(90 + M.sd([80, 100])!);
+  }
+  const weeks = chartData(s, s.metrics[0], "Week flow", 2, 0, "2026-11-23");
+  expect(weeks.points.at(-1)?.average).toBe(200);
+});
+
+it("Week flow years skips nonexistent leap dates and matches dates across New Year", () => {
+  const s = M.initial();
+  s.entries = [
+    { id: "leap", date: "2020-02-29", values: { weight: 80 } },
+    { id: "march", date: "2023-03-01", values: { weight: 200 } },
+    { id: "dec", date: "2024-12-31", values: { weight: 90 } },
+    { id: "jan", date: "2025-01-01", values: { weight: 100 } },
+  ];
+  const leap = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    4,
+    0,
+    "2024-02-29",
+    0,
+    "years",
+  );
+  expect(leap.points.at(-1)?.average).toBe(80);
+  const missing = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    1,
+    0,
+    "2024-02-29",
+    0,
+    "years",
+  );
+  expect(missing.points.at(-1)?.average).toBeUndefined();
+  const newYear = chartData(
+    s,
+    s.metrics[0],
+    "Week flow",
+    1,
+    0,
+    "2026-01-02",
+    0,
+    "years",
+  );
+  expect(newYear.points.find((p) => p.date === "2025-12-31")?.average).toBe(90);
+  expect(newYear.points.find((p) => p.date === "2026-01-01")?.average).toBe(
+    100,
+  );
+});
