@@ -313,3 +313,59 @@ it("tracks strict above/below streaks, sparse dates, resets, future exclusion, a
     "above",
   );
 });
+
+it("Days YoY shows prior years ahead of today without future measurements", () => {
+  const s = M.initial();
+  s.ranges.ahead = 2;
+  s.entries = [
+    { id: "future", date: "2026-12-02", values: { weight: 100 } },
+    { id: "previous", date: "2025-12-02", values: { weight: 85 } },
+    { id: "older", date: "2024-12-02", values: { weight: 80 } },
+  ];
+  const points = chartData(
+    s,
+    s.metrics[0],
+    "Days YoY",
+    1,
+    0,
+    "2026-11-18",
+  ).points;
+  expect(points).toHaveLength(21);
+  expect(points.at(-1)).toMatchObject({
+    date: "2026-12-02",
+    actual: undefined,
+    previous: 85,
+    older: 80,
+  });
+  expect(
+    points
+      .filter((p) => p.date > "2026-11-18")
+      .every((p) => p.actual === undefined),
+  ).toBe(true);
+  const rollover = chartData(
+    s,
+    s.metrics[0],
+    "Days YoY",
+    1,
+    0,
+    "2026-12-28",
+  ).points;
+  expect(rollover.at(-1)?.date).toBe("2027-01-11");
+});
+
+it("restores old range settings and validates weeks ahead independently", () => {
+  const legacy = M.initial();
+  delete (legacy.ranges as Partial<M.State["ranges"]>).ahead;
+  expect(M.validateState(legacy).ranges.ahead).toBe(0);
+  for (const ahead of [0, 2, 520]) {
+    expect(
+      M.validateState({ ...legacy, ranges: { ...legacy.ranges, ahead } }).ranges
+        .ahead,
+    ).toBe(ahead);
+  }
+  for (const ahead of [-1, 1.5, 521]) {
+    expect(() =>
+      M.validateState({ ...legacy, ranges: { ...legacy.ranges, ahead } }),
+    ).toThrow();
+  }
+});

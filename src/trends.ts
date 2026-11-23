@@ -27,6 +27,7 @@ export function chartData(
   count: number,
   weekday: number,
   today: string,
+  weeksAhead = s.ranges.ahead ?? 0,
 ) {
   const byDay = new Map(
     s.entries
@@ -42,7 +43,7 @@ export function chartData(
     actualEligible: number[] = [],
     historyEligible: number[] = [];
   if (mode === "Days YoY") {
-    for (let i = count * 7 - 1; i >= 0; i--) {
+    for (let i = count * 7 - 1; i >= -weeksAhead * 7; i--) {
       const day = addDays(today, -i),
         d = date(day);
       const prev = (offset: number) => {

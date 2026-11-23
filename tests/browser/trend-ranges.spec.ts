@@ -10,7 +10,8 @@ test("trend steppers edit independently during delayed saves and persist each ra
   });
   await page.getByRole("button", { name: "Trends", exact: true }).click();
   const modes = [
-    { tab: "Days YoY", label: "Weeks covered", key: "days", value: "41" },
+    { tab: "Days YoY", label: "Weeks ahead", key: "ahead", value: "2" },
+    { tab: "Days YoY", label: "Weeks past", key: "days", value: "41" },
     {
       tab: "Previous weekdays",
       label: "Weeks covered",
@@ -45,7 +46,7 @@ test("trend steppers edit independently during delayed saves and persist each ra
       const response = await request.get("/api/journal");
       return (await response.json()).ranges;
     })
-    .toEqual({ days: 41, weekday: 19, week: 8, year: 6 });
+    .toEqual({ days: 41, ahead: 2, weekday: 19, week: 8, year: 6 });
   await page.reload();
   await page.getByRole("button", { name: "Trends", exact: true }).click();
   for (const mode of modes) {
@@ -69,7 +70,7 @@ test("Days YoY covers seven calendar days per selected week", async ({
 }) => {
   await page.getByRole("button", { name: "Trends", exact: true }).click();
   const weeks = page.getByRole("spinbutton", {
-    name: "Weeks covered",
+    name: "Weeks past",
     exact: true,
   });
   await weeks.fill("1");
@@ -79,11 +80,38 @@ test("Days YoY covers seven calendar days per selected week", async ({
   await expect(page.locator(".data-details summary")).toContainText("14 dates");
   await expect
     .poll(async () => (await (await request.get("/api/journal")).json()).ranges)
-    .toEqual({ days: 2, weekday: 52, week: 12, year: 3 });
+    .toEqual({ days: 2, ahead: 0, weekday: 52, week: 12, year: 3 });
   await page.reload();
   await page.getByRole("button", { name: "Trends", exact: true }).click();
   await expect(
-    page.getByRole("spinbutton", { name: "Weeks covered", exact: true }),
+    page.getByRole("spinbutton", { name: "Weeks past", exact: true }),
   ).toHaveValue("2");
   await expect(page.locator(".data-details summary")).toContainText("14 dates");
+});
+
+test("Weeks ahead extends the chart and resets invalid drafts", async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date("2026-11-18T12:00:00") });
+  await page.getByRole("button", { name: "Trends", exact: true }).click();
+  const ahead = page.getByRole("spinbutton", {
+    name: "Weeks ahead",
+    exact: true,
+  });
+  await expect(ahead).toHaveValue("0");
+  await ahead.fill("2");
+  await page.locator(".data-details summary").click();
+  await expect(page.locator(".data-details tbody tr").first()).toContainText(
+    "2026-12-02",
+  );
+  await expect(page.locator(".data-details summary")).toContainText(
+    "224 dates",
+  );
+  await ahead.fill("-1");
+  await ahead.press("Tab");
+  await expect(ahead).toHaveValue("2");
+  await ahead.fill("0");
+  await expect(page.locator(".data-details tbody tr").first()).toContainText(
+    "2026-11-18",
+  );
 });

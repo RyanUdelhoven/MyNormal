@@ -71,7 +71,7 @@ export function Trends({
         text="Add a metric in New entry to start exploring trends."
       />
     );
-  const key =
+  const key: RangeKey =
     mode === "Days YoY"
       ? "days"
       : mode === "Previous weekdays"
@@ -89,6 +89,7 @@ export function Trends({
     count,
     weekday,
     M.localDate(),
+    validRanges.ahead,
   );
   const observed = points.flatMap((p) =>
     p.actual === undefined ? [] : [p.actual],
@@ -193,48 +194,60 @@ export function Trends({
               ))}
             </select>
           </label>
-          <label>
-            {mode === "Days YoY"
-              ? "Weeks covered"
-              : mode === "Previous weekdays"
-                ? "Weeks covered"
-                : mode === "Week flow"
-                  ? "Previous weeks"
-                  : "Previous years"}
-            <input
-              key={key}
-              type="number"
-              min={minimum}
-              max={maximum}
-              step={1}
-              value={drafts[key]}
-              onChange={(e) => {
-                const raw = e.target.value;
-                setDrafts((current) => ({ ...current, [key]: raw }));
-                const n = Number(raw);
-                if (
-                  raw.trim() &&
-                  Number.isInteger(n) &&
-                  n >= minimum &&
-                  n <= maximum
-                ) {
-                  setValidRanges((current) => ({ ...current, [key]: n }));
-                  requested.current[key] = n;
-                  void commitRange(key, n);
-                }
-              }}
-              onFocus={() => {
-                focused.current = key;
-              }}
-              onBlur={() => {
-                focused.current = undefined;
-                setDrafts((current) => ({
-                  ...current,
-                  [key]: String(validRanges[key]),
-                }));
-              }}
-            />
-          </label>
+          {(mode === "Days YoY" ? ([key, "ahead"] as const) : [key]).map(
+            (rangeKey) => {
+              const rangeMinimum = rangeKey === "ahead" ? 0 : minimum;
+              return (
+                <label key={rangeKey}>
+                  {rangeKey === "ahead"
+                    ? "Weeks ahead"
+                    : mode === "Days YoY"
+                      ? "Weeks past"
+                      : mode === "Previous weekdays"
+                        ? "Weeks covered"
+                        : mode === "Week flow"
+                          ? "Previous weeks"
+                          : "Previous years"}
+                  <input
+                    key={rangeKey}
+                    type="number"
+                    min={rangeMinimum}
+                    max={maximum}
+                    step={1}
+                    value={drafts[rangeKey]}
+                    onChange={(e) => {
+                      const raw = e.target.value;
+                      setDrafts((current) => ({ ...current, [rangeKey]: raw }));
+                      const n = Number(raw);
+                      if (
+                        raw.trim() &&
+                        Number.isInteger(n) &&
+                        n >= rangeMinimum &&
+                        n <= maximum
+                      ) {
+                        setValidRanges((current) => ({
+                          ...current,
+                          [rangeKey]: n,
+                        }));
+                        requested.current[rangeKey] = n;
+                        void commitRange(rangeKey, n);
+                      }
+                    }}
+                    onFocus={() => {
+                      focused.current = rangeKey;
+                    }}
+                    onBlur={() => {
+                      focused.current = undefined;
+                      setDrafts((current) => ({
+                        ...current,
+                        [rangeKey]: String(validRanges[rangeKey]),
+                      }));
+                    }}
+                  />
+                </label>
+              );
+            },
+          )}
           {mode === "Previous weekdays" && (
             <label>
               Weekday
